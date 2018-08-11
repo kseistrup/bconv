@@ -63,7 +63,7 @@ if sys.version_info < (3, 4):
 __author__ = 'Klaus Alexander Seistrup <klaus@seistrup.dk>'
 __whoami__ = 'bconv'
 __revision__ = '2018-08-11'
-__version__ = '0.5.1 ({})'.format(__revision__)
+__version__ = '0.5.1.1 ({})'.format(__revision__)
 __copyright__ = """\
 bconv {}
 Copyright © 1996-2018 Klaus Alexander Seistrup <klaus@seistrup.dk>
@@ -286,7 +286,7 @@ def main(progname=__whoami__):
         if args.bits and integer < 0:
             die('bit count valid for positive integers only')
         converted = bconv(integer, obase, args.upper, args.bits)
-        print(converted.rjust(width, '0') if width else converted)
+        print(converted.zfill(width) if width else converted)
 
     return 0
 
