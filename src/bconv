@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- mode: python; coding: utf-8 -*-
 """
-Usage: bconv [OPTIONS] [INTEGER [INTEGER …]]
+usage: bconv [OPTIONS] [INTEGER [INTEGER …]]
 
 positional arguments:
   INTEGER               integer to convert
@@ -10,21 +10,22 @@ optional arguments:
   -h, --help            show this help message and exit
   -v, --version         show version information and exit
   -c, --copyright       show copying policy and exit
-or:
   -i INPUT_BASE, --input-base INPUT_BASE
-                        input is in INPUT_BASE (2..36)
+                        input is in INPUT_BASE (2‥36)
   -o OUTPUT_BASE, --output-base OUTPUT_BASE
-                        output is in OUTPUT_BASE (2..36)
+                        output is in OUTPUT_BASE (2‥36)
+  -w WIDTH, --width WIDTH
+                        pad on the left with zeroes until WIDTH
+  -b, --bits            show number of bits in INTEGER
   -l, --lower           show result in lowercase (default)
   -u, --upper           show result in uppercase
-  -b, --bits            show number of bits in INTEGER
 
 Default bases are 10 (decimal).
 
 For convenience, input and output bases can be specified either as an
 integer or as BINary (2), OCTal (8), DECimal (10) or HEXadecimal (16).
 
-The characters A..Z corresponds to bases 11..36.
+The characters A‥Z corresponds to bases 11‥36.
 
 Modelled after a similar program written in C by yours truly in 1996.
 """
@@ -62,7 +63,7 @@ if sys.version_info < (3, 4):
 __author__ = 'Klaus Alexander Seistrup <klaus@seistrup.dk>'
 __whoami__ = 'bconv'
 __revision__ = '2018-08-11'
-__version__ = '0.5.0 ({})'.format(__revision__)
+__version__ = '0.5.1 ({})'.format(__revision__)
 __copyright__ = """\
 bconv {}
 Copyright © 1996-2018 Klaus Alexander Seistrup <klaus@seistrup.dk>
@@ -78,7 +79,7 @@ Default bases are 10 (decimal).
 For convenience, input and output bases can be specified either as an
 integer or as BINary (2), OCTal (8), DECimal (10) or HEXadecimal (16).
 
-The characters A..Z corresponds to bases 11..36.
+The characters A‥Z corresponds to bases 11‥36.
 """
 
 (STDIN, STDOUT, STDERR) = (sys.stdin, sys.stdout, sys.stderr)
@@ -106,6 +107,7 @@ SUGAR = (
 # Add convenient synonyms
 for (_base, _name) in SUGAR:
     BASES[_name] = BASES[_name[:3]] = _base
+del _base, _name
 
 
 def debug(head, data=None):
@@ -223,7 +225,6 @@ def strtobase(arg):
 
 def main(progname=__whoami__):
     """Main entry point"""
-
     debug('argv', sys.argv)
 
     parser = argparse.ArgumentParser(
@@ -240,9 +241,13 @@ def main(progname=__whoami__):
                         help='show copying policy and exit')
     # Specific arguments
     parser.add_argument('-i', '--input-base', default='10',
-                        help='input is in INPUT_BASE (2..36)')
+                        help='input is in INPUT_BASE (2‥36)')
     parser.add_argument('-o', '--output-base', default='10',
-                        help='output is in OUTPUT_BASE (2..36)')
+                        help='output is in OUTPUT_BASE (2‥36)')
+    parser.add_argument('-w', '--width', type=int, default=0,
+                        help='pad on the left with zeroes until WIDTH')
+    parser.add_argument('-b', '--bits', action='store_true',
+                        help='show number of bits in INTEGER')
 
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-l', '--lower', action='store_true',
@@ -250,8 +255,6 @@ def main(progname=__whoami__):
     group.add_argument('-u', '--upper', action='store_true',
                        help='show result in uppercase')
 
-    parser.add_argument('-b', '--bits', action='store_true',
-                        help='show number of bits in INTEGER')
     parser.add_argument('INTEGER', nargs='*',
                         help='integer to convert')
 
@@ -259,10 +262,12 @@ def main(progname=__whoami__):
     debug('args', args)
 
     (ibase, obase) = (strtobase(args.input_base), strtobase(args.output_base))
+    width = args.width
 
     try:
-        assert 1 < ibase < 37, 'input base not in range 2..36'
-        assert 1 < obase < 37, 'output base not in range 2..36'
+        assert 1 < ibase < 37, 'input base not in range 2‥36'
+        assert 1 < obase < 37, 'output base not in range 2‥36'
+        assert width >= 0, 'width must be a positive integer'
     except AssertionError as error:
         die(error)
 
@@ -280,7 +285,8 @@ def main(progname=__whoami__):
         integer = strtol(strint, ibase)
         if args.bits and integer < 0:
             die('bit count valid for positive integers only')
-        print(bconv(integer, obase, args.upper, args.bits))
+        converted = bconv(integer, obase, args.upper, args.bits)
+        print(converted.rjust(width, '0') if width else converted)
 
     return 0
 
