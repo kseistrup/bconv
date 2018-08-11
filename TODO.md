@@ -1,4 +1,5 @@
-## TODO
+## Future plans
 
-* BConv should recognize koremutake MeRS.
-  * Added June 11, 2008; incomplete; priority=low
+### Suggestions
+
+If you feel something is missing, please open an issue on [Github](https://github.com/kseistrup/bconv/issues).
