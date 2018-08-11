@@ -9,7 +9,7 @@ Usage: bconv [OPTION(S)] [NUMBER(S)]
   Options are:
     -iIBASE, --input-base=IBASE .... input is in base IBASE  (2‥36)
     -oOBASE, --output-base=OBASE ... output is in base OBASE (2‥36)
-    -l, --lower .................... output result in lowercase  (*)
+    -l, --lower .................... output result in lowercase (*)
     -u, --upper .................... output result in uppercase
     -b, --bits ..................... show number of bits in NUMBER
   or
