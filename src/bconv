@@ -1,0 +1,308 @@
+#!/usr/bin/env python
+# -*- mode: python; coding: utf-8 -*-
+"""
+Usage: bconv [OPTION(S)] [NUMBER(S)]
+  Options are:
+    -iIBASE, --input-base=IBASE .... input is in base IBASE  (2..36)
+    -oOBASE, --output-base=OBASE ... output is in base OBASE (2..36)
+    -l, --lower .................... output result in lowercase  (*)
+    -u, --upper .................... output result in uppercase
+    -b, --bits ..................... show number of bits in NUMBER
+  or
+    -c, --copyright ................ show copying policy and exit
+    -h, --help ..................... print this brief help text
+    -v, --version .................. display version information
+
+Default bases are 10 (decimal).
+
+For convenience, input and output bases can be specified either as a
+number or as BINary (2), OCTal (8), DECimal (10) or HEXadecimal (16).
+The characters A..Z corresponds to bases 11..36.
+
+Modelled after a similar program written in C by yours truly in 1996.
+"""
+##############################################################################
+# This program is free software; you can redistribute it and/or modify it    #
+# under the terms of the GNU General Public License as published by the Free #
+# Software Foundation; either version 3 of the License, or (at your option)  #
+# any later version.                                                         #
+#                                                                            #
+# This program is distributed in the hope that it will be useful, but with-  #
+# out any warranty; without even the implied warranty of merchantability or  #
+# fitness for a particular purpose.  See the GNU General Public License for  #
+# more details.  <http://gplv3.fsf.org/>                                     #
+##############################################################################
+
+__author__      = 'Klaus Alexander Seistrup <kas+bconv@magnetic-ink.dk>'
+__revision__    = '2011-04-07'
+__version__     = '0.4.3'
+__copyright__   = """\
+bconv %s (%s)
+Copyright (C) 1996-2011 Klaus Alexander Seistrup <klaus@seistrup.dk>
+
+This is free software; see the source for copying conditions.  There is no
+warranty; not even for merchantability or fitness for a particular purpose.""" % (
+    __version__, __revision__
+)
+import sys
+import os
+import getopt
+
+from collections import deque
+from sys import stdin, stdout, stderr
+
+ME = 'bconv'
+
+class MyError(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+    # end def __init__
+# end class MyError
+
+Options = {
+    # Specific
+    'i:': 'input-base=',
+    'o:': 'output-base=',
+    'l' : 'lower-case',
+    'u' : 'upper-case',
+    'b' : 'bits',
+    # Generic
+    'c' : 'copyright',
+    'h' : 'help',
+    'v' : 'version',
+}
+xopts = ['copying', 'copyleft', 'bitcount']
+sopts = ''.join(Options.keys())
+lopts = Options.values() + xopts
+
+# Count the number of bits in a number
+def bitcount(n):
+    bits = 0
+    while n:
+        n &= (n-1)
+        bits += 1
+    # end while
+    return bits
+# end def bitcount
+
+# Convert long to a string representation
+def bconv(number, base, toupper=False, countbits=False):
+    if not number:
+        return '0'
+    # end if
+    if number < 0:
+        sign = '-'
+        number = -number
+    else:
+        sign = ''
+    # end if
+    if countbits:
+        number = bitcount(number)
+    # end if
+    # For bases 2, 8, 10 and 16 use python's builtin methods
+    if   base ==  2:
+        result = bin(number)[2:]
+    elif base ==  8:
+        result = oct(number)[1:]
+        if result.endswith('L'):
+            result = result[:-1]
+        # end if
+    elif base == 10:
+        result = str(number)
+    elif base == 16:
+        result = hex(number)[2:]
+        if result.endswith('L'):
+            result = result[:-1]
+        # end if
+    else:
+        ALPHABET = '0123456789abcdefghijklmnopqrstuvwxyz'
+        digits = deque()
+        while number:
+            (number, modulus) = divmod(number, base)
+            digits.appendleft(ALPHABET[modulus])
+        # end while
+        result = ''.join(digits)
+    # end if
+    if toupper:
+        result = result.upper()
+    # end if
+    if countbits:
+        return result
+    # end if
+    return sign + result
+# end def bconv
+
+BASES = {
+    'A': 11, 'B': 12, 'C': 13, 'D': 14,
+    'E': 15, 'F': 16, 'G': 17, 'H': 18,
+    'I': 19, 'J': 20, 'K': 21, 'L': 22,
+    'M': 23, 'N': 24, 'O': 25, 'P': 26,
+    'Q': 27, 'R': 28, 'S': 29, 'T': 30,
+    'U': 31, 'V': 32, 'W': 33, 'X': 34,
+    'Y': 35, 'Z': 36,
+}
+
+sugar = (
+    ( 2, 'BINARY'),
+    ( 3, 'TERNARY'),
+    ( 4, 'QUARTERNARY'),
+    ( 5, 'QUINARY'),
+    ( 6, 'SEXTAL'),
+    ( 7, 'SEPTIMAL'),
+    ( 8, 'OCTAL'),
+    ( 9, 'NONARY'),
+    (10, 'DECIMAL'),
+    (12, 'DUODECIMAL'),
+    (16, 'HEXADECIMAL'),
+    (20, 'VIGESIMAL'),
+    (30, 'TRIGESIMAL')
+)
+
+# Add convenient synonyms
+for (base, name) in sugar:
+    BASES[name] = \
+    BASES[name[:3]] = base
+# end for
+
+def stobase(s):
+    try:
+        base = BASES.get(s.upper(), None) or long(s)
+    except:
+        # Main routine will complain for us
+        base = -1
+    # end try
+    return base
+# end def stobase
+
+# Convert string to long
+def strtol(string, base):
+    try:
+        try:
+            l = long(string, base)
+        except ValueError, msg:
+            raise MyError(msg)
+        except:
+            raise MyError('%s: error converting %s from base %s' % (ME, string, base))
+        # end try
+    except MyError, err:
+        print >> stderr, err.msg
+        sys.exit(1)
+    # end try
+    return l
+# end def strtol
+
+# Main entry point
+def main(argv=None):
+    global ME
+
+    if argv is None:
+        argv = sys.argv
+    # end if
+
+    me = os.path.basename(argv[0])
+    while me[-3:] == '.py':
+        me = me[:-3]
+    # end while
+    ME = me
+
+    try:
+        try:
+            (opts, args) = getopt.getopt(argv[1:], sopts, lopts)
+        except getopt.error, msg:
+            raise MyError(msg)
+        # end try
+    except MyError, err:
+        print >>stderr, err.msg
+        print >>stderr, "Try '%s --help' for more information." % me
+        return 1
+    # end try
+
+    iBase = oBase = 10
+    toUpper = bitCount = False
+
+    # Loop through options
+    for (opt, arg) in opts:
+        if   opt in ('-i', '--input-base'):
+            iBase = stobase(arg)
+        elif opt in ('-o', '--output-base'):
+            oBase = stobase(arg)
+        elif opt in ('-l', '--lower-case'):
+            toUpper = False
+        elif opt in ('-u', '--upper-case'):
+            toUpper = True
+        elif opt in ('-b', '--bits', '--bitcount'):
+            bitCount = True
+        elif opt in ('-h', '--help'):
+            print __doc__
+            return 0
+        elif opt in ('-c', '--copyright', '--copyleft', '--copying'):
+            print __copyright__
+            return 0
+        elif opt in ('-v', '--version'):
+            if me != 'bconv':
+                print 'bconv/%s (%s) %s' % (__version__, __revision__, me)
+            else:
+                print 'bconv/%s (%s)' % (__version__, __revision__)
+            # end if
+            return 0
+        else:
+            # Catch-all
+            print >>stderr, "Try '%s --help' for more information." % me
+            return 1
+        # end if
+    # end for
+
+    try:
+        try:
+            assert 1 < iBase <= 36,  '%s: input base not in 2..36' % (me,)
+            assert 1 < oBase <= 36, '%s: output base not in 2..36' % (me,)
+        except AssertionError, msg:
+            raise MyError(msg)
+        # end try
+    except MyError, err:
+        print >>stderr, err.msg
+        return 1
+    # end try
+
+    # Main program starts here
+
+    if not args:
+        try:
+            try:
+                args = stdin.read().split()
+            except IOError, msg:
+                raise MyError(msg)
+            except:
+                raise MyError('%s: cannot read from standard input' % (me,))
+            # end try
+        except MyError, err:
+            print >>stderr, err.msg
+            return 1
+        # end try
+    # end if
+
+    for arg in args:
+        if bitCount:
+            if arg.startswith('-'):
+                print >>stderr, '%s: bitcount valid for positive integers only' % (me,)
+                return 1
+            # end if
+        # end if
+        print bconv(strtol(arg, iBase), oBase, toUpper, bitCount)
+    # end for
+
+    # End of road
+    return 0
+# end def main
+
+if __name__ == '__main__':
+    try:
+        from locale import setlocale, LC_ALL
+        dummy = setlocale(LC_ALL, '')
+    except:
+        pass
+    # eof
+    sys.exit(main())
+# end if
+
+# eof
